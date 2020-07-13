@@ -22,13 +22,14 @@ connection.connect(function (err) {
 
     mainMenu();
 });
+
 function mainMenu() {
     inquirer.prompt([
         {
             message: "Please select an option below:",
             name: "menuChoice",
             type: "list",
-            choices: ["View all employees", "View employees by deparment", "Change employee job", "Add employees", "add roles", "add department", "Remove employees", "exit"]
+            choices: ["View all employees", "Change manager", "Change employee job", "Add employees", "add roles", "add department", "Remove employees", "Department total salary", "exit"]
         }
     ]).then(function ({ menuChoice }) {
         // console.log(menuChoice);
@@ -37,8 +38,8 @@ function mainMenu() {
             case "View all employees":
                 viewEmployee();
                 break;
-            case "View employees by deparment":
-                viewDepartment();
+            case "Change manager":
+                changeManager();
                 break;
             case "Change employee job":
                 changeJob();
@@ -47,13 +48,16 @@ function mainMenu() {
                 addEmployee();
                 break;
             case "Remove employees":
-                removeEmployee();
+                DeleteEmployee()
                 break;
             case "add roles":
                 addRole();
                 break;
             case "add department":
                 addDepartment();
+                break;
+            case "Department total salary":
+                summer();
                 break;
 
             case "EXIT":
@@ -66,7 +70,7 @@ function viewEmployee() {
     connection.query("SELECT * FROM employee INNER JOIN role ON role.id = employee.role_id INNER JOIN department ON department.id = role.department_id", function (err, data) {
         if (err) throw err;
         // console.log(iceCreamData);
-        console.log(data)
+        console.table(data)
     })
 
 }
@@ -172,7 +176,7 @@ function addRole() {
             },
             {
                 message: "Please enter a department for this role",
-                name: "addDepartment ",
+                name: "addDepartment",
                 type: "list",
                 choices: newRole
 
@@ -213,7 +217,7 @@ function addDepartment() {
 function changeJob() {
     let naming = [];
     let newJob = [];
-    let roleId = "filler"
+    let roleId = ""
     connection.query("SELECT * FROM role", function (err, employeeData) {
         if (err)
             throw err;
@@ -234,17 +238,78 @@ function changeJob() {
             },
             {
                 message: "What is the name of the employee?",
-                name: "emplyName",
+                name: "employName",
                 type: "input"
 
-        }]).then(function (change) {
-                naming = change.emplyName.split(" ")
-                connection.query("SELECT id FROM role WHERE title = ?", [change.newJob], function(data) { roleId = 2
-             console.log(data + "!!!!!!!!!!!!!!!!!!")
+        }]).then(function(change) {
+               
+                naming = change.employName.split(" ")
+                console.log(naming)
+                connection.query("SELECT id FROM role WHERE title = ?", [change.newJob], function (err, data) {
+                    if (err)
+                        throw err; 
+                        roleId = data
+             console.log(Object.keys(data) + "!!!!!!!!!!!!!!!!!!")
            
                 connection.query("UPDATE employee SET ?  WHERE ? AND ?", [
                     {
                         role_Id: roleId
+                    },
+                    {
+                        first_name: naming[0]
+
+                    },
+                    { last_name: naming[1] }
+                ], function (err, updateData) {
+                    if (err)
+                        throw err;
+
+                    console.log(`${updateData.affectedRows} job was changed.`);
+
+                    mainMenu();
+                });
+            })
+        })
+    })
+}
+
+function changeManager() {
+    let naming = [];
+    let newManager = [];
+    let ManagerId;
+    connection.query("SELECT * FROM employee", function (err, employeeData) {
+        if (err)
+            throw err;
+
+
+
+        for (let i = 0; i < employeeData.length; i++) {
+            newManager.push(`${employeeData[i].first_name} ${employeeData[i].last_name}`);
+
+        }
+
+        inquirer.prompt([
+            {
+                message: "Who is the new manager?",
+                name: "newManager",
+                type: "list",
+                choices: newManager
+
+            },
+            {
+                message: "What is the name of the employee who will recieve the new manager?",
+                name: "employName",
+                type: "input"
+
+        }]).then(function (change) {
+                naming = change.employName.split(" ")
+                newManager = change.newManager.split(" ")
+                connection.query("SELECT id FROM employee WHERE first_name = ? AND last_name = ?", [newManager[0], newManager[1]], function(data) { roleId = 2
+             console.log(data + "!!!!!!!!!!!!!!!!!!")
+           
+                connection.query("UPDATE employee SET ?  WHERE ? AND ?", [
+                    {
+                        manager_Id: ManagerId
                     },
                     {
                         first_name: naming[0]
@@ -262,4 +327,83 @@ function changeJob() {
             })
         })
     })
+}
+
+function DeleteEmployee() {
+    let naming = [];
+    let delet = [];
+    
+    connection.query("SELECT * FROM employee", function (err, employeeData) {
+        if (err)
+            throw err;
+
+
+
+        for (let i = 0; i < employeeData.length; i++) {
+            delet.push(`${employeeData[i].first_name} ${employeeData[i].last_name}`);
+
+        }
+        inquirer.prompt([
+            {
+                message: "Who is the new manager?",
+                name: "DeleteEmp",
+                type: "list",
+                choices: delet
+
+            }]).then(function(dat){
+                naming = dat.DeleteEmp.split(" ")
+                connection.query("DELETE FROM employee WHERE first_name = ? AND last_name = ?", [naming[0], naming[1]], function (err) {
+                    if (err)
+                        throw err; 
+                    mainMenu()
+            })
+    })
+    })
+}
+
+function summer(){
+    let naming = [];
+    let total = 0;
+    connection.query("SELECT * FROM role", function (err, employeeData) {
+        if (err)
+            throw err;
+
+
+
+        for (let i = 0; i < employeeData.length; i++) {
+            naming.push(employeeData[i].title);
+
+        }
+
+        
+       
+
+ inquirer.prompt([
+            {
+                message: "What job would you like to check?",
+                name: "nameIT",
+                type: "list",
+                choices: naming
+
+            }]).then(function(dat){
+                
+                
+
+               
+    
+    connection.query("SELECT * FROM role WHERE title = ?", [dat.naming], function(err, employeeData) {
+        if (err)
+            throw err;
+
+
+
+        for (let i = 0; i < employeeData.length; i++) {
+           total = total + (employeeData[i].salary);
+
+        }
+        console.log(employeeData)
+        console.log(`this job pays employees a total of ${total} dollars.`)
+    })
+    })
+})
 }
