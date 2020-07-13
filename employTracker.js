@@ -28,7 +28,7 @@ function mainMenu() {
             message: "Please select an option below:",
             name: "menuChoice",
             type: "list",
-            choices: ["View all employees", "View employees by deparment", "View Employees by manager", "Add employees", "add roles", "add department", "Remove employees", "exit"]
+            choices: ["View all employees", "View employees by deparment", "Change employee job", "Add employees", "add roles", "add department", "Remove employees", "exit"]
         }
     ]).then(function ({ menuChoice }) {
         // console.log(menuChoice);
@@ -40,8 +40,8 @@ function mainMenu() {
             case "View employees by deparment":
                 viewDepartment();
                 break;
-            case "View Employees by manager":
-                viewManager();
+            case "Change employee job":
+                changeJob();
                 break;
             case "Add employees":
                 addEmployee();
@@ -72,95 +72,122 @@ function viewEmployee() {
 }
 
 function addEmployee() {
-    connection.query("SELECT title FROM role", function (err, employeeData) {
+    let roleChoices = [];
+    let managerChoices = [];
+    let nameName
+    connection.query("SELECT * FROM role", function (err, employeeData) {
         if (err)
             throw err;
 
-        let roleChoices = [];
+
 
         for (let i = 0; i < employeeData.length; i++) {
-            roleChoices.push(employeeData[i]);
+            roleChoices.push(employeeData[i].title);
         }
-    })
-    connection.query("SELECT * FROM employee", function (err, employeeData) {
-        if (err)
-            throw err;
 
-        let managerChoices = [];
 
-        for (let i = 0; i < employeeData.length; i++) {
-            managerChoices.push(`${employeeData[i].firstName} ${employeeData[i].lastName}`);
-        }
-    })
-    inquirer.prompt([
-        {
-            message: "Please enter a new role.",
-            name: "firstName",
-            type: "input",
-
-        },
-        {
-            message: "Please enter a salary for this role.",
-            name: "lastName",
-            type: "input",
-
-        },
-        {
-            message: "Please indicate employee role:",
-            name: "theRole",
-            type: "list",
-            choices: [roleChoices]
-        },
-        {
-            message: "Please indicate employee manager:",
-            name: "theManager",
-            type: "list",
-            choices: [managerChoices, "None"]
-        }
-    ]).then(function (employee) {
-
-        connection.query("INSERT INTO employee (first_name, last_name, manager_id, role_id) VALUES (?, ?, SELECT id FROM role WHERE title = ?, SELECT id FROM employee WHERE title = ?) ", [employee.firstName, employee.lastName, employee.theManager, employee.theRole], function (err, data) {
+        connection.query("SELECT * FROM employee", function (err, employeeData) {
             if (err)
                 throw err;
 
-            console.log(`${data.affectedRows} added!`);
 
-            mainMenu();
-        });
 
+            for (let i = 0; i < employeeData.length; i++) {
+                managerChoices.push(`${employeeData[i].first_name} ${employeeData[i].last_name}`);
+
+            }
+
+
+            console.log(`${managerChoices} are console logged`)
+            inquirer.prompt([
+                {
+                    message: "Please indicate employee first name:",
+                    name: "firstName",
+                    type: "input",
+
+                },
+                {
+                    message: "Please indicate employee last name:",
+                    name: "lastName",
+                    type: "input",
+
+                },
+
+                {
+                    message: "Please indicate employee role:",
+                    name: "theRole",
+                    type: "list",
+                    choices: roleChoices
+                },
+                {
+                    message: "Please indicate employee manager:",
+                    name: "theManager",
+                    type: "list",
+                    choices: managerChoices
+                }
+            ]).then(function (employee) {
+                nameName = employee.theManager.split(" ")
+                // connection.query("SELECT id FROM role WHERE title = ?", [employee.theRole], function(data) {
+                //     console.log(data + "---------------------fslkjdsjsjdf")
+
+                // })
+                // console.log(employee.theRole + "<<<<<<<<<<<<<<<" + firstName)
+                connection.query("INSERT INTO employee (first_name, last_name, manager_id, role_id) VALUES (?, ?, (SELECT id FROM (SELECT * FROM employee) as something WHERE first_name = ? AND last_name = ?), (SELECT id FROM role WHERE title = ?)) ", [employee.firstName, employee.lastName, nameName[0], nameName[1], employee.theRole], function (err, data) {
+                    if (err)
+                        throw err;
+
+                    console.log(`${data.affectedRows} added!`);
+
+                    mainMenu();
+                });
+
+            })
+        })
     })
-
 }
 
 function addRole() {
-    inquirer.prompt([
-        {
-            message: "Please enter a new role.",
-            name: "addRole",
-            type: "input",
+    let newRole = [];
+    connection.query("SELECT * FROM department", function (err, employeeData) {
+        if (err)
+            throw err;
 
-        },
-        {
-            message: "Please enter a salary for this role.",
-            name: "addSalary",
-            type: "input",
 
-        },
-        {
-            message: "Please enter a department for this role",
-            name: "addDepartment ",
-            type: "input",
 
+        for (let i = 0; i < employeeData.length; i++) {
+            newRole.push(employeeData[i].name);
         }
+        inquirer.prompt([
+            {
+                message: "Please enter a new role.",
+                name: "addRole",
+                type: "input",
 
-    ]).then(function (enter) {
-        connection.query("INSERT INTO role (title, salary, despartment_id) VALUES (?, ?, (SELECT id FROM department WHERE name=?))", [enter.addRole, parseFloat(enter.addSalary, enter.addDepartment)], function (err, data) {
-            if (err)
-                throw err;
+            },
+            {
+                message: "Please enter a salary for this role.",
+                name: "addSalary",
+                type: "input",
 
-            console.log(`${data.affectedRows} added!`);
+            },
+            {
+                message: "Please enter a department for this role",
+                name: "addDepartment ",
+                type: "list",
+                choices: newRole
 
-            mainMenu();
+            }
+
+        ]).then(function (enter) {
+            
+            connection.query("INSERT INTO role (title, salary, department_id) VALUES (?, ?, (SELECT id FROM department WHERE name=?))", [enter.addRole, parseFloat(enter.addSalary), enter.addDepartment], function (err, data) {
+                if (err)
+                    throw err;
+
+                console.log(`${data.affectedRows} added!`);
+
+                mainMenu();
+            })
         })
     })
 }
@@ -182,4 +209,57 @@ function addDepartment() {
                 mainMenu();
             })
         })
+}
+function changeJob() {
+    let naming = [];
+    let newJob = [];
+    let roleId = "filler"
+    connection.query("SELECT * FROM role", function (err, employeeData) {
+        if (err)
+            throw err;
+
+
+
+        for (let i = 0; i < employeeData.length; i++) {
+            newJob.push(employeeData[i].title);
+        }
+
+        inquirer.prompt([
+            {
+                message: "What is the new job?",
+                name: "newJob",
+                type: "list",
+                choices: newJob
+
+            },
+            {
+                message: "What is the name of the employee?",
+                name: "emplyName",
+                type: "input"
+
+        }]).then(function (change) {
+                naming = change.emplyName.split(" ")
+                connection.query("SELECT id FROM role WHERE title = ?", [change.newJob], function(data) { roleId = 2
+             console.log(data + "!!!!!!!!!!!!!!!!!!")
+           
+                connection.query("UPDATE employee SET ?  WHERE ? AND ?", [
+                    {
+                        role_Id: roleId
+                    },
+                    {
+                        first_name: naming[0]
+
+                    },
+                    { last_name: naming[1] }
+                ], function (err, updateData) {
+                    if (err)
+                        throw err;
+
+                    console.log(`${updateData.affectedRows} product was bid on! New price accepted!`);
+
+                    mainMenu();
+                });
+            })
+        })
+    })
 }
